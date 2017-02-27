@@ -1,4 +1,4 @@
-arista_interface_check
+* arista_interface_check
 
 Python nagios script for monitoring errors and discards on Arista switch interfaces.  
 Required parameters are:  
@@ -8,7 +8,7 @@ Required parameters are:
 4) error threshold (pps)  
 
 
-arista_config_sanity_check
+* arista_config_sanity_check
 
 This script is searching for typos and misconfiguration by comparing created and assigned objects
 like ACLs, route-maps etc.
