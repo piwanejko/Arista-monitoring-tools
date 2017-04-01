@@ -39,11 +39,13 @@
 
 """
 
-# TODO local copy of show run instead of eapi request each time
+# TODO handling eapi exceptions like inability to connect
+# TODO temporary local copy of 'show run' instead of eapi request each time
 # TODO VLANs
 
 import pyeapi
 import re
+import smtplib
 
 
 def gather_node_names(config='.eapi.conf'):
@@ -55,16 +57,37 @@ def gather_node_names(config='.eapi.conf'):
 
     # Gathering node names
     nodes = []
-    config_file = open('.eapi.conf')
+    config_file = open(config)
     for line in config_file.readlines():
         if re.match('\[connection:', line):
             nodes.append(line.split(':')[1][:-2])
     return nodes
 
 
+def send_email(message, recipient, config='.smtp.conf'):
+    """ Function for sending message over SMTP server from configuration file containing three lines:
+        login: user
+        pass: password
+        host: mail.example.com
+    """
+    smtp_data = {}
+    smtp_config_file = open(config)
+    for line in smtp_config_file.readlines():
+        smtp_data[line.split(': ')[0]] = line.split(': ')[1].rstrip()
+
+    smtp_connection = smtplib.SMTP(smtp_data['host'], 25)
+    smtp_connection.starttls()
+    smtp_connection.login(smtp_data['login'], smtp_data['pass'])
+    email_header = 'To: ' + recipient + '\n' + 'From: ' + smtp_data['login'] + '\n' + 'Subject: Arista config check\n' \
+                   + 'Content-Type: text/plain\n\n'
+    email_message = email_header + message
+    smtp_connection.sendmail(smtp_data['login'], recipient, email_message)
+    smtp_connection.close()
+
+
 #
 def check_objects(check_type, return_message, eapi_connection, host_name):
-    """ Functions is gathering all created and assigned objects.
+    """ Function is gathering all created and assigned objects.
         Created objects are found by running proper 'show' command using eapi and parsing json response.
         Assigned objects comes from parsed 'show running configuration'.
         Returns dictionary with host_name as key containing list of alert messages.
@@ -95,7 +118,7 @@ def check_objects(check_type, return_message, eapi_connection, host_name):
     elif check_type == 'route-map':
         created_command = 'show route-map'
         result_key = 'routeMaps'
-        assigned_command = '| include neighbor [0-9.]* route-map'
+        assigned_command = '| include [neighbor [0-9.]* route-map|redistribute static route-map]'
         name_position = 3
 
     for created_object in eapi_connection.enable(created_command)[0]['result'][result_key]:
@@ -139,18 +162,23 @@ if __name__ == '__main__':
         node_connection = pyeapi.connect_to(node)
         for check in checked_parts:
             returned_dictionary = check_objects(check[0], check[1], node_connection, node)
-            returned_key = list(returned_dictionary.keys())[0]
-            if list(returned_dictionary.values())[0]:
-                if list(returned_dictionary.keys())[0] in final_result:
-                    [final_result[returned_key].append(message) for message in returned_dictionary[returned_key]]
-                else:
-                    final_result[returned_key] = returned_dictionary[returned_key]
+            if returned_dictionary:
+                returned_key = list(returned_dictionary.keys())[0]
+                if list(returned_dictionary.values())[0]:
+                    if list(returned_dictionary.keys())[0] in final_result:
+                        [final_result[returned_key].append(message) for message in returned_dictionary[returned_key]]
+                    else:
+                        final_result[returned_key] = returned_dictionary[returned_key]
 
     # Constructing readable output from final_result dictionary.
     alert_message = ''
-    for key in final_result:
-        alert_message += "Node: {0}\n".format(key)
-        for message in final_result[key]:
-            alert_message += "\t{0}\n".format(message)
-        alert_message += "\n"
-    print(alert_message)
+    if final_result:
+        for key in final_result:
+            alert_message += "Node: {0}\n".format(key)
+            for message in final_result[key]:
+                alert_message += "\t{0}\n".format(message)
+            alert_message += "\n"
+
+    # Sending results over smtp
+    if alert_message:
+        send_email(alert_message, 'email@example.com')
