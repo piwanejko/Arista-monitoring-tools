@@ -118,7 +118,7 @@ def check_objects(check_type, return_message, eapi_connection, host_name):
     elif check_type == 'route-map':
         created_command = 'show route-map'
         result_key = 'routeMaps'
-        assigned_command = '| include [neighbor [0-9.]* route-map|redistribute static route-map]'
+        assigned_command = '| grep \'neighbor .\+ route-map\|redistribute static route-map\|route install\''
         name_position = 3
 
     for created_object in eapi_connection.enable(created_command)[0]['result'][result_key]:
