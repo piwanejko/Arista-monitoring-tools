@@ -97,7 +97,7 @@ for interface_name in list(interfaces_data.keys()):
             if interfaces_data[interface_name][interface_key] == 0:
                 interfaces_data[interface_name].__delitem__(interface_key)
             else:
-                interfaces_data[interface_name][interface_key] *= -0.033
+                interfaces_data[interface_name][interface_key] /= -30
 
 # Preparing results
 warning_status = False
