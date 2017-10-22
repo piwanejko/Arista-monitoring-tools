@@ -38,7 +38,7 @@ try:
     snmp_int_status = subprocess.check_output("snmpwalk -v 2c -On -c {0} {1} .1.3.6.1.2.1.2.2.1.8"
                                               .format(initial_args.dev_comm, initial_args.dev_ip), shell=True)
     for id_line, status_line in zip(snmp_int_name.decode().splitlines(), snmp_int_status.decode().splitlines()):
-        if re.search('Ethernet', id_line) and re.search('up', status_line):
+        if re.search('Ethernet', id_line) and re.search('INTEGER: 1', status_line):
             interface_name = id_line.split()[-1]
             interface_id = id_line.split()[0].split('.')[-1]
             try:
